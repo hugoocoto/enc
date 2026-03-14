@@ -28,7 +28,7 @@ test(void *data, size_t size, void *data_expected, size_t size_expected)
         ++total;
 
         size_t new_size2;
-        char *res2 = b64_dec(res, new_size, &new_size2);
+        char *res2 = (char *) b64_dec(res, new_size, &new_size2);
 
         if (new_size2 != size) {
                 printf("Test failed: size unmatch at dec\n");
@@ -43,7 +43,7 @@ test(void *data, size_t size, void *data_expected, size_t size_expected)
         ++passed;
 }
 
-#define test(x, y) test(x, strlen(x), y, strlen(y))
+#define test(x, y) test((void *) x, strlen(x), (void *) y, strlen(y))
 
 int
 main()
