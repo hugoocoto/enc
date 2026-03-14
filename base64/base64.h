@@ -63,12 +63,15 @@ char *
 b64_enc(const void *data, size_t size, size_t *new_size)
 {
         const unsigned char *d = (const unsigned char *) data;
+        int sm3;
+        char *output;
 
-        *new_size = (size / 3 + (size % 3 != 0)) * 4;
-        char *output = (char *) malloc(*new_size + 1);
+        sm3 = size % 3;
+        *new_size = (size / 3 + (sm3 != 0)) * 4;
+        output = malloc(*new_size + 1);
         size -= 2;
 
-#pragma omp parallel for
+/*   */ #pragma omp parallel for
         for (size_t di = 0; di < size; di += 3) {
                 unsigned int i = (d[di + 0] & 0xFC) >> 2;
                 unsigned int j = ((d[di + 0] & 0x03) << 4) | ((d[di + 1] & 0xF0) >> 4);
@@ -83,31 +86,27 @@ b64_enc(const void *data, size_t size, size_t *new_size)
 
         size += 2;
 
-        switch (size % 3) {
-        case 0: break;
-
+        switch (sm3) {
         case 1: {
                 unsigned int i = (d[size - 1] & 0xFC) >> 2;
                 unsigned int j = ((d[size - 1] & 0x03) << 4);
-                output[*new_size - 4] = b64_enc_lookup[i];
-                output[*new_size - 3] = b64_enc_lookup[j];
-                output[*new_size - 2] = '=';
-                output[*new_size - 1] = '=';
+                char *out = &output[*new_size];
+                out[-4] = b64_enc_lookup[i];
+                out[-3] = b64_enc_lookup[j];
+                out[-2] = '=';
+                out[-1] = '=';
         } break;
 
         case 2: {
                 unsigned int i = (d[size - 2] & 0xFC) >> 2;
                 unsigned int j = ((d[size - 2] & 0x03) << 4) | ((d[size - 1] & 0xF0) >> 4);
                 unsigned int k = ((d[size - 1] & 0x0F) << 2);
-                output[*new_size - 4] = b64_enc_lookup[i];
-                output[*new_size - 3] = b64_enc_lookup[j];
-                output[*new_size - 2] = b64_enc_lookup[k];
-                output[*new_size - 1] = '=';
+                char *out = &output[*new_size];
+                out[-4] = b64_enc_lookup[i];
+                out[-3] = b64_enc_lookup[j];
+                out[-2] = b64_enc_lookup[k];
+                out[-1] = '=';
         } break;
-
-        default:
-                assert("unreachable" && 0);
-                break;
         }
 
         output[*new_size] = 0;
