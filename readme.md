@@ -14,4 +14,8 @@ void *b64_dec(const char *data, size_t size, size_t *new_size);
 
 # Sha256
 
-No implemented
+- I don't know if it works but it looks like if so.
+
+```c
+int sha256(int fdin, size_t size, int fdout);
+```
