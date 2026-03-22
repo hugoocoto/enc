@@ -11,6 +11,7 @@ int sha256(int fdin, size_t msg_size, int fdout);
 
 #ifdef INCLUDE_SHA256_IMPLEMENTATION
 
+#include <arpa/inet.h>
 #include <assert.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -54,14 +55,17 @@ sha256(int fdin, size_t msg_size, int fdout)
         assert(read(fdin, data, msg_size) > 0);
         data[msg_size] = 0x80;
         uint64_t bit_len = (uint64_t) msg_size * 8;
-        *(uint64_t *) &data[L - 8] = bit_len;
+        uint32_t *len_ptr = (uint32_t *) &data[L - 8];
+        len_ptr[0] = htonl((uint32_t)(bit_len >> 32));
+        len_ptr[1] = htonl((uint32_t)(bit_len & 0xFFFFFFFF));
 
         uint32_t w[64] = IV;
         for (size_t c_i = 0; c_i < L; c_i += 64) {
                 uint32_t *chunk = (uint32_t *) (data + c_i);
 
                 // copy chunk into first 16 words w[0..15] of the message schedule array
-                memcpy(w, chunk, 16 * sizeof(uint32_t));
+                for (size_t i = 0; i < 16; i++)
+                        w[i] = ntohl(chunk[i]);
 
                 // Extend the first 16 words into the remaining 48 words w[16..63] of the message schedule array:
                 for (size_t i = 16; i < 64; i++) {
@@ -110,15 +114,12 @@ sha256(int fdin, size_t msg_size, int fdout)
                 h7 = h7 + h;
         }
 
-        // Produce the final hash value
-        write(fdout, &h0, sizeof h0);
-        write(fdout, &h1, sizeof h1);
-        write(fdout, &h2, sizeof h2);
-        write(fdout, &h3, sizeof h3);
-        write(fdout, &h4, sizeof h4);
-        write(fdout, &h5, sizeof h5);
-        write(fdout, &h6, sizeof h6);
-        write(fdout, &h7, sizeof h7);
+        // Produce the final hash value (big-endian)
+        uint32_t digest[8] = {
+                htonl(h0), htonl(h1), htonl(h2), htonl(h3),
+                htonl(h4), htonl(h5), htonl(h6), htonl(h7)
+        };
+        write(fdout, digest, sizeof digest);
 
         free(data);
         return 0;
